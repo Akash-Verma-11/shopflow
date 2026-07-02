@@ -1,0 +1,50 @@
+pipeline {
+  agent any
+  environment {
+    ECR_REGISTRY = "ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com"
+    AWS_REGION   = "ap-south-1"
+  }
+  stages {
+    stage('Checkout') { steps { checkout scm } }
+
+    stage('Install & Test') {
+      parallel {
+        stage('User Service') {
+          steps { dir('services/user-service') { sh 'npm install && npm test' } }
+        }
+        stage('Product Service') {
+          steps { dir('services/product-service') { sh 'pip install -r requirements.txt && pytest' } }
+        }
+        stage('Order Service') {
+          steps { dir('services/order-service') { sh 'npm install' } }
+        }
+      }
+    }
+
+    stage('Build & Scan') {
+      steps {
+        script {
+          def services = ['user-service', 'product-service', 'order-service']
+          services.each { svc ->
+            sh "docker build -t ${ECR_REGISTRY}/shopflow-${svc}:${BUILD_NUMBER} services/${svc}"
+            sh "./security/trivy-scan.sh ${ECR_REGISTRY}/shopflow-${svc}:${BUILD_NUMBER}"
+          }
+        }
+      }
+    }
+
+    stage('Push to ECR') {
+      steps {
+        sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}"
+        script {
+          ['user-service', 'product-service', 'order-service'].each { svc ->
+            sh "docker push ${ECR_REGISTRY}/shopflow-${svc}:${BUILD_NUMBER}"
+          }
+        }
+      }
+    }
+  }
+  post {
+    failure { echo 'Pipeline failed -- check Trivy scan or test output above.' }
+  }
+}
