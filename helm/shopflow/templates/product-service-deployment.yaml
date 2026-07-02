@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: product-service
+    {{- include "shopflow.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.productService.replicaCount }}
+  selector:
+    matchLabels:
+      app: product-service
+  template:
+    metadata:
+      labels:
+        app: product-service
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+        - name: product-service
+          image: "{{ .Values.productService.image.repository }}:{{ .Values.productService.image.tag }}"
+          imagePullPolicy: {{ .Values.productService.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.productService.service.targetPort }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.dbCredentials.name }}
+          env:
+            - name: AWS_STS_REGIONAL_ENDPOINTS
+              value: regional
+            - name: AWS_DEFAULT_REGION
+              value: {{ .Values.global.awsRegion | quote }}
+            - name: AWS_REGION
+              value: {{ .Values.global.awsRegion | quote }}
+          resources:
+            {{- toYaml .Values.productService.resources | nindent 12 }}

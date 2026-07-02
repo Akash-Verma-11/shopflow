@@ -1,0 +1,89 @@
+global:
+  awsRegion: ap-south-1
+
+serviceAccount:
+  create: false
+  name: shopflow-sa
+  annotations: {}
+
+dbCredentials:
+  create: false
+  name: db-credentials
+  data:
+    DB_HOST: ""
+    DB_PORT: "5432"
+    DB_NAME: ""
+    DB_USER: ""
+    DB_PASSWORD: ""
+
+userService:
+  replicaCount: 2
+  image:
+    repository: 282538118471.dkr.ecr.ap-south-1.amazonaws.com/shopflow/user-service
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 3001
+    targetPort: 3001
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+
+productService:
+  replicaCount: 2
+  image:
+    repository: 282538118471.dkr.ecr.ap-south-1.amazonaws.com/shopflow/product-service
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 5001
+    targetPort: 5001
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+
+orderService:
+  replicaCount: 2
+  image:
+    repository: 282538118471.dkr.ecr.ap-south-1.amazonaws.com/shopflow/order-service
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 3002
+    targetPort: 3002
+  env:
+    PRODUCT_SERVICE_URL: http://product-service:5001
+    USER_SERVICE_URL: http://user-service:3001
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70

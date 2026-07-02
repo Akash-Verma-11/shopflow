@@ -1,0 +1,5 @@
+plugin: aws_ssm
+regions:
+  - ap-south-1
+filters:
+  tag:Name: "shopflow-dev-node-group*"

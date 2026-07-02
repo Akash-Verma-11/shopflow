@@ -1,0 +1,9 @@
+---
+- name: Verify node health via SSM
+  hosts: all
+  connection: community.aws.aws_ssm
+  tasks:
+    - name: Check kubelet status
+      command: systemctl status kubelet
+      register: kubelet_status
+    - debug: var=kubelet_status.stdout

@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: order-service
+    {{- include "shopflow.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.orderService.replicaCount }}
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3002"
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+        - name: order-service
+          image: "{{ .Values.orderService.image.repository }}:{{ .Values.orderService.image.tag }}"
+          imagePullPolicy: {{ .Values.orderService.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.orderService.service.targetPort }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.dbCredentials.name }}
+          env:
+            - name: PRODUCT_SERVICE_URL
+              value: {{ .Values.orderService.env.PRODUCT_SERVICE_URL | quote }}
+            - name: USER_SERVICE_URL
+              value: {{ .Values.orderService.env.USER_SERVICE_URL | quote }}
+            - name: AWS_STS_REGIONAL_ENDPOINTS
+              value: regional
+            - name: AWS_DEFAULT_REGION
+              value: {{ .Values.global.awsRegion | quote }}
+            - name: AWS_REGION
+              value: {{ .Values.global.awsRegion | quote }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.orderService.service.targetPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: {{ .Values.orderService.service.targetPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.orderService.resources | nindent 12 }}

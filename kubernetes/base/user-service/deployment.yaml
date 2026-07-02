@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: shopflow
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: user-service } }
+  template:
+    metadata:
+      labels: { app: user-service }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3001"
+    spec:
+      serviceAccountName: shopflow-sa
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector: { matchLabels: { app: user-service } }
+      containers:
+        - name: user-service
+          image: 282538118471.dkr.ecr.ap-south-1.amazonaws.com/shopflow/user-service:latest
+          ports: [{ containerPort: 3001 }]
+          envFrom: [{ secretRef: { name: db-credentials } }]
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits: { cpu: "300m", memory: "256Mi" }
+          readinessProbe: { httpGet: { path: /ready, port: 3001 }, initialDelaySeconds: 5 }
+          livenessProbe:  { httpGet: { path: /health, port: 3001 }, initialDelaySeconds: 10 }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: user-service, namespace: shopflow }
+spec:
+  selector: { app: user-service }
+  ports: [{ port: 3001, targetPort: 3001 }]
